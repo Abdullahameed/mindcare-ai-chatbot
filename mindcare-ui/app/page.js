@@ -215,6 +215,10 @@ export default function MindCareApp() {
       });
       const data = await response.json();
 
+      if (!response.ok) {
+        throw new Error(data.detail || "Server error");
+      }
+
       // Add bot response to chat
       setMessages(prev => [...prev, { text: data.response, isBot: true }]);
       setIsLoading(false);
