@@ -4,12 +4,16 @@ import { Mic, MicOff, Send, Smile, Meh, Frown, FileText, Sparkles, PlusCircle } 
 
 export default function MindCareApp() {
   const [view, setView] = useState("landing"); // Flow: landing -> auth -> dashboard
-  const [authMode, setAuthMode] = useState("signup"); // signup or signin
+  const [authMode, setAuthMode] = useState("signup"); // signup or signin or forgot
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [userSession, setUserSession] = useState(null);
   const [currentSessionId, setCurrentSessionId] = useState("session_" + Date.now());
+  const [authError, setAuthError] = useState("");
+  const [resetUsername, setResetUsername] = useState("");
+  const [resetPassword, setResetPassword] = useState("");
+  const [speechSupported, setSpeechSupported] = useState(true);
 
   const [messages, setMessages] = useState([
     { text: "Hello, this platform is designed to provide mental well-being support with personalized features.", isBot: true }
@@ -104,7 +108,7 @@ export default function MindCareApp() {
   // Initialize SpeechRecognition on mount
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
+    if (SpeechRecognition && window.isSecureContext !== false) {
       const rec = new SpeechRecognition();
       rec.continuous = false;
       rec.interimResults = false;
@@ -119,13 +123,16 @@ export default function MindCareApp() {
       };
       rec.onend = () => setIsListening(false);
       recognitionRef.current = rec;
+    } else {
+      setSpeechSupported(false);
     }
   }, []);
 
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
+    setAuthError("");
     if (!username.trim() || !password.trim()) {
-      alert("Please enter both username and password.");
+      setAuthError("Please enter both username and password.");
       return;
     }
 
@@ -150,13 +157,38 @@ export default function MindCareApp() {
           fetchHistory(userId);
           setView("dashboard");
         } else {
-          alert("Authentication succeeded but session configuration was invalid.");
+          setAuthError("Authentication succeeded but session configuration was invalid.");
         }
       } else {
-        alert(data.detail || `Server returned error code: ${res.status}`);
+        setAuthError(data.detail || `Server returned error code: ${res.status}`);
       }
     } catch (err) {
-      alert("Backend service refused connection or dropped network parsing packets.");
+      setAuthError("Backend service refused connection. Please try again.");
+    }
+  };
+
+  const handleResetSubmit = async (e) => {
+    e.preventDefault();
+    setAuthError("");
+    if (!resetUsername.trim() || !resetPassword.trim()) {
+      setAuthError("Please enter both username and new password.");
+      return;
+    }
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: resetUsername.trim(), new_password: resetPassword.trim() })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAuthMode("signin");
+        setAuthError("Password successfully updated. Please sign in.");
+      } else {
+        setAuthError(data.detail || "Failed to reset password.");
+      }
+    } catch (err) {
+      setAuthError("Backend service refused connection.");
     }
   };
 
@@ -196,10 +228,8 @@ export default function MindCareApp() {
 
   // Voice input toggle
   const toggleVoice = () => {
-    if (!recognitionRef.current) {
-      alert("Speech recognition is not supported in this browser, or requires HTTPS. Please use Chrome over HTTPS.");
-      return;
-    }
+    if (!speechSupported || !recognitionRef.current) return;
+    
     if (isListening) {
       recognitionRef.current.stop();
       setIsListening(false);
@@ -210,7 +240,7 @@ export default function MindCareApp() {
       } catch (err) {
         console.log("Speech recognition start error:", err);
         setIsListening(false);
-        alert("Microphone access requires HTTPS. Once your SSL certificate is active on mindcareai.space, voice input will work automatically.");
+        setSpeechSupported(false); // Graceful fallback if it fails dynamically
       }
     }
   };
@@ -284,63 +314,63 @@ export default function MindCareApp() {
       <div className="min-h-screen bg-[#EBF5FB] flex items-center justify-center p-6">
         <div className="bg-[#D9E4F2] w-full max-w-md rounded-[32px] p-8 border border-white/60 shadow-lg">
           <div className="flex bg-[#BACDDF]/60 rounded-2xl p-1.5 mb-8">
-            <button type="button" onClick={() => setAuthMode("signup")} className={`flex-1 text-center py-2.5 text-xs font-bold rounded-xl transition-all ${authMode === "signup" ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>Sign up</button>
-            <button type="button" onClick={() => setAuthMode("signin")} className={`flex-1 text-center py-2.5 text-xs font-bold rounded-xl transition-all ${authMode === "signin" ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>Welcome Back</button>
+            <button type="button" onClick={() => {setAuthMode("signup"); setAuthError("");}} className={`flex-1 text-center py-2.5 text-xs font-bold rounded-xl transition-all ${authMode === "signup" ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>Sign up</button>
+            <button type="button" onClick={() => {setAuthMode("signin"); setAuthError("");}} className={`flex-1 text-center py-2.5 text-xs font-bold rounded-xl transition-all ${(authMode === "signin" || authMode === "forgot") ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>Sign In</button>
           </div>
 
           <h2 className="text-center font-extrabold text-slate-800 text-2xl mb-6">
-            {authMode === "signup" ? "Join MindCare" : "Welcome Back"}
+            {authMode === "signup" ? "Join MindCare" : authMode === "forgot" ? "Reset Password" : "Welcome Back"}
           </h2>
-          <form onSubmit={handleAuthSubmit} className="space-y-4">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1 mb-1 tracking-wider">Username</label>
-              <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" className="w-full bg-[#EDF3FA] border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-medium focus:outline-none focus:border-sky-400 text-slate-800 shadow-inner" />
+          
+          {authError && (
+            <div className="bg-rose-100 text-rose-600 text-xs font-bold p-3 rounded-xl mb-4 text-center shadow-sm">
+              {authError}
             </div>
+          )}
+
+          {authMode !== "forgot" ? (
+            <form onSubmit={handleAuthSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1 mb-1 tracking-wider">Username</label>
+                <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" className="w-full bg-[#EDF3FA] border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-medium focus:outline-none focus:border-sky-400 text-slate-800 shadow-inner" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1 mb-1 tracking-wider">Password</label>
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" className="w-full bg-[#EDF3FA] border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-medium focus:outline-none focus:border-sky-400 text-slate-800 shadow-inner" />
+              </div>
+              <button type="submit" className="w-full bg-[#6484AC] hover:bg-[#537299] text-white font-bold text-xs py-4 rounded-xl transition-colors shadow-md mt-4 uppercase tracking-wider">
+                {authMode === "signup" ? "Sign Up" : "Sign In"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleResetSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1 mb-1 tracking-wider">Username</label>
+                <input type="text" value={resetUsername} onChange={e => setResetUsername(e.target.value)} placeholder="Enter your username" className="w-full bg-[#EDF3FA] border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-medium focus:outline-none focus:border-sky-400 text-slate-800 shadow-inner" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1 mb-1 tracking-wider">New Password</label>
+                <input type="password" value={resetPassword} onChange={e => setResetPassword(e.target.value)} placeholder="Enter new password" className="w-full bg-[#EDF3FA] border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-medium focus:outline-none focus:border-sky-400 text-slate-800 shadow-inner" />
+              </div>
+              <button type="submit" className="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs py-4 rounded-xl transition-colors shadow-md mt-4 uppercase tracking-wider">
+                Reset Password
+              </button>
+            </form>
+          )}
+
+          <div className="text-center text-xs text-slate-500 mt-5 font-medium space-y-3">
+            {authMode === "signin" && (
+              <button type="button" onClick={() => {setAuthMode("forgot"); setAuthError("");}} className="text-sky-600 underline text-xs font-bold block mx-auto">
+                Forgot Password?
+              </button>
+            )}
             <div>
-              <label className="block text-[11px] font-bold text-slate-500 uppercase ml-1 mb-1 tracking-wider">Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" className="w-full bg-[#EDF3FA] border border-slate-200 rounded-xl px-4 py-3.5 text-xs font-medium focus:outline-none focus:border-sky-400 text-slate-800 shadow-inner" />
+              {authMode === "signup" ? "Already have an account? " : authMode === "forgot" ? "Remember your password? " : "New here? "}
+              <button type="button" onClick={() => {setAuthMode(authMode === "signup" ? "signin" : "signup"); setAuthError("");}} className="text-sky-600 underline font-bold ml-0.5">
+                {authMode === "signup" ? "Sign in" : authMode === "forgot" ? "Sign in" : "Sign up"}
+              </button>
             </div>
-            <button type="submit" className="w-full bg-[#6484AC] hover:bg-[#537299] text-white font-bold text-xs py-4 rounded-xl transition-colors shadow-md mt-4 uppercase tracking-wider">
-              {authMode === "signup" ? "Sign Up" : "Sign In"}
-            </button>
-          </form>
-
-          <p className="text-center text-xs text-slate-500 mt-5 font-medium">
-          <button
-  type="button"
-  onClick={() => {
-    const usernameInput = prompt("Enter your username:");
-    const newPassword = prompt("Enter your new password:");
-
-    if (!usernameInput || !newPassword) return;
-
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/auth/reset-password`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        username: usernameInput,
-        new_password: newPassword
-      })
-    })
-    .then(res => res.json())
-    .then(data => {
-      alert(data.detail || "Password updated.");
-    })
-    .catch(() => {
-      alert("Failed to reset password.");
-    });
-  }}
-  className="text-sky-600 underline text-xs font-bold mt-3 block mx-auto"
->
-  Forgot Password?
-</button>
-            {authMode === "signup" ? "Already have an account? " : "New here? "}
-            <button type="button" onClick={() => setAuthMode(authMode === "signup" ? "signin" : "signup")} className="text-sky-600 underline font-bold ml-0.5">
-              {authMode === "signup" ? "Sign in" : "Sign up"}
-            </button>
-          </p>
+          </div>
         </div>
       </div>
     );
@@ -396,7 +426,7 @@ export default function MindCareApp() {
         </div>
 
         {/* Center Panel: Chat */}
-        <div className="lg:col-span-6 bg-white rounded-[32px] shadow-md flex flex-col border border-slate-100 overflow-hidden h-[660px]">
+        <div className="lg:col-span-6 bg-white rounded-[32px] shadow-md flex flex-col border border-slate-100 overflow-hidden min-h-[500px] h-[calc(100vh-6rem)]">
           <div className="p-4 bg-slate-50/50 border-b border-slate-100 font-bold text-slate-800 text-sm tracking-wide flex justify-between items-center">
             <span>Clinical Chat Interface</span>
             <div className="flex items-center gap-2">
@@ -449,12 +479,13 @@ export default function MindCareApp() {
               placeholder="Commence conversational assessment..."
               className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-medium focus:outline-none focus:border-sky-400 text-slate-800"
             />
-            <button
-              type="button"
-              onClick={toggleVoice}
-              title={!recognitionRef.current ? "Voice requires HTTPS (SSL)" : isListening ? "Stop listening" : "Start voice input"}
-              className={`p-3 rounded-xl transition-all ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-slate-100 hover:bg-slate-200 text-slate-400'}`}
-            >
+              <button
+                type="button"
+                onClick={toggleVoice}
+                title={!speechSupported ? "Voice recognition requires HTTPS and browser support" : isListening ? "Stop listening" : "Start voice input"}
+                className={`p-3 rounded-xl transition-all ${!speechSupported ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-slate-100 hover:bg-slate-200 text-slate-500'}`}
+                disabled={!speechSupported}
+              >
               {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </button>
             <button type="submit" className="p-3 bg-[#4FA3F7] hover:bg-sky-500 text-white rounded-xl transition-colors shadow-md">
@@ -464,7 +495,7 @@ export default function MindCareApp() {
         </div>
 
         {/* Right Panel: Sentiment */}
-        <div className="lg:col-span-3 bg-white rounded-[32px] p-6 shadow-md border border-slate-100 flex flex-col justify-between h-[660px]">
+        <div className="lg:col-span-3 bg-white rounded-[32px] p-6 shadow-md border border-slate-100 flex flex-col justify-between min-h-[500px] h-[calc(100vh-6rem)]">
           <div>
             <h3 className="font-extrabold text-slate-950 text-base tracking-wide mb-0.5">Sentiment Profile</h3>
             <span className="text-[10px] text-slate-400 block mb-6 font-bold uppercase tracking-wider">Real-time analysis counts</span>
