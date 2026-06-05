@@ -238,7 +238,7 @@ export default function MindCareApp() {
   // Voice input toggle
   const toggleVoice = () => {
     if (!speechSupported || !recognitionRef.current) return;
-    
+
     if (isListening) {
       recognitionRef.current.stop();
       setIsListening(false);
@@ -313,9 +313,9 @@ export default function MindCareApp() {
             </div>
           </div>
         </div>
-        
+
         <footer className="w-full mt-12 pt-6 border-t border-white/40 text-center">
-          <p className="text-slate-500 font-medium text-sm">Developed by Abdullahameed</p>
+          <p className="text-slate-500 font-medium text-sm">Developed by Abdullah</p>
         </footer>
       </div>
     );
@@ -327,14 +327,14 @@ export default function MindCareApp() {
       <div className="min-h-screen bg-gradient-to-br from-[#EBF5FB] via-[#D5E6F7] to-[#BACDDF] flex items-center justify-center p-6">
         <div className="backdrop-blur-md bg-white/40 w-full max-w-md rounded-[32px] p-8 border border-white/60 shadow-2xl">
           <div className="flex bg-white/40 rounded-2xl p-1.5 mb-8 shadow-inner border border-white/40">
-            <button type="button" onClick={() => {setAuthMode("signup"); setAuthError("");}} className={`flex-1 text-center py-2.5 text-xs font-bold rounded-xl transition-all ${authMode === "signup" ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>Sign up</button>
-            <button type="button" onClick={() => {setAuthMode("signin"); setAuthError("");}} className={`flex-1 text-center py-2.5 text-xs font-bold rounded-xl transition-all ${(authMode === "signin" || authMode === "forgot") ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>Sign In</button>
+            <button type="button" onClick={() => { setAuthMode("signup"); setAuthError(""); }} className={`flex-1 text-center py-2.5 text-xs font-bold rounded-xl transition-all ${authMode === "signup" ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>Sign up</button>
+            <button type="button" onClick={() => { setAuthMode("signin"); setAuthError(""); }} className={`flex-1 text-center py-2.5 text-xs font-bold rounded-xl transition-all ${(authMode === "signin" || authMode === "forgot") ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>Sign In</button>
           </div>
 
           <h2 className="text-center font-extrabold text-slate-800 text-2xl mb-6">
             {authMode === "signup" ? "Join MindCare" : authMode === "forgot" ? "Reset Password" : "Welcome Back"}
           </h2>
-          
+
           {authError && (
             <div className="bg-rose-100 text-rose-600 text-xs font-bold p-3 rounded-xl mb-4 text-center shadow-sm">
               {authError}
@@ -373,13 +373,13 @@ export default function MindCareApp() {
 
           <div className="text-center text-xs text-slate-500 mt-5 font-medium space-y-3">
             {authMode === "signin" && (
-              <button type="button" onClick={() => {setAuthMode("forgot"); setAuthError("");}} className="text-sky-600 underline text-xs font-bold block mx-auto">
+              <button type="button" onClick={() => { setAuthMode("forgot"); setAuthError(""); }} className="text-sky-600 underline text-xs font-bold block mx-auto">
                 Forgot Password?
               </button>
             )}
             <div>
               {authMode === "signup" ? "Already have an account? " : authMode === "forgot" ? "Remember your password? " : "New here? "}
-              <button type="button" onClick={() => {setAuthMode(authMode === "signup" ? "signin" : "signup"); setAuthError("");}} className="text-sky-600 underline font-bold ml-0.5">
+              <button type="button" onClick={() => { setAuthMode(authMode === "signup" ? "signin" : "signup"); setAuthError(""); }} className="text-sky-600 underline font-bold ml-0.5">
                 {authMode === "signup" ? "Sign in" : authMode === "forgot" ? "Sign in" : "Sign up"}
               </button>
             </div>
@@ -418,11 +418,10 @@ export default function MindCareApp() {
                   <div
                     key={i}
                     onClick={() => setCurrentSessionId(item.session_id)}
-                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer shadow-sm ${
-                      currentSessionId === item.session_id
+                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer shadow-sm ${currentSessionId === item.session_id
                         ? 'bg-white border-sky-400 scale-[1.01]'
                         : 'bg-white/70 hover:bg-white/90 border-white/40'
-                    }`}
+                      }`}
                   >
                     <span className="block text-xs font-bold text-slate-800 truncate">{item.title}</span>
                     <span className="block text-[9px] text-sky-600 font-mono font-medium mt-0.5 uppercase tracking-tight">Active Room</span>
@@ -463,18 +462,17 @@ export default function MindCareApp() {
                 {msg.isBot && (
                   <div className="w-7 h-7 rounded-full bg-gradient-to-br from-sky-100 to-white flex items-center justify-center text-xs mr-2 border border-sky-200 shadow-sm mt-0.5 z-10">🧠</div>
                 )}
-                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-[13px] leading-relaxed shadow-md backdrop-blur-sm ${
-                  msg.isBot
+                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-[13px] leading-relaxed shadow-md backdrop-blur-sm ${msg.isBot
                     ? 'bg-white/80 text-slate-700 rounded-tl-none border border-white/60 font-medium'
                     : 'bg-gradient-to-r from-[#4FA3F7] to-sky-500 text-white rounded-tr-none border border-sky-400 font-medium'
-                }`}>
+                  }`}>
                   {msg.isBot ? (
                     <ReactMarkdown
                       components={{
-                        strong: ({node, ...props}) => <strong className="font-extrabold text-slate-900" {...props} />,
-                        p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                        ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
-                        li: ({node, ...props}) => <li className="" {...props} />
+                        strong: ({ node, ...props }) => <strong className="font-extrabold text-slate-900" {...props} />,
+                        p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                        ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
+                        li: ({ node, ...props }) => <li className="" {...props} />
                       }}
                     >
                       {msg.text}
@@ -515,13 +513,13 @@ export default function MindCareApp() {
               placeholder="Commence conversational assessment..."
               className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-medium focus:outline-none focus:border-sky-400 text-slate-800"
             />
-              <button
-                type="button"
-                onClick={toggleVoice}
-                title={!speechSupported ? "Voice recognition requires HTTPS and browser support" : isListening ? "Stop listening" : "Start voice input"}
-                className={`p-3 rounded-xl transition-all ${!speechSupported ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-slate-100 hover:bg-slate-200 text-slate-500'}`}
-                disabled={!speechSupported}
-              >
+            <button
+              type="button"
+              onClick={toggleVoice}
+              title={!speechSupported ? "Voice recognition requires HTTPS and browser support" : isListening ? "Stop listening" : "Start voice input"}
+              className={`p-3 rounded-xl transition-all ${!speechSupported ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-slate-100 hover:bg-slate-200 text-slate-500'}`}
+              disabled={!speechSupported}
+            >
               {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </button>
             <button type="submit" className="p-3 bg-[#4FA3F7] hover:bg-sky-500 text-white rounded-xl transition-colors shadow-md">
