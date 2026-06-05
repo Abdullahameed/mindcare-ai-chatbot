@@ -313,6 +313,10 @@ export default function MindCareApp() {
             </div>
           </div>
         </div>
+        
+        <footer className="w-full mt-12 pt-6 border-t border-white/40 text-center">
+          <p className="text-slate-500 font-medium text-sm">Developed by Abdullahameed</p>
+        </footer>
       </div>
     );
   }
