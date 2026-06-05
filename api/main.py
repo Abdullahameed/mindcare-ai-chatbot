@@ -40,41 +40,62 @@ app.add_middleware(
 )
 
 # -------------------------------------------------------
-# SQLITE PERSISTENT DATABASE LAYER
+# POSTGRESQL PERSISTENT DATABASE LAYER
 # -------------------------------------------------------
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "mindcare_data.db")
+import psycopg2
+import psycopg2.extras
+
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+class DBConnectionWrapper:
+    def __init__(self, conn):
+        self.conn = conn
+
+    def execute(self, query, params=None):
+        cur = self.conn.cursor()
+        cur.execute(query, params)
+        return cur
+
+    def commit(self):
+        self.conn.commit()
+
+    def close(self):
+        self.conn.close()
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL environment variable is missing")
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.DictCursor)
+    return DBConnectionWrapper(conn)
 
 def init_db():
+    if not DATABASE_URL:
+        print("DATABASE_URL not set, skipping database initialization")
+        return
     conn = get_db()
-    cursor = conn.cursor()
 
-    cursor.execute("""
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
             user_id TEXT PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
-            created_at TEXT DEFAULT (datetime('now'))
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
-    cursor.execute("""
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS sessions (
             session_id TEXT PRIMARY KEY,
             user_id TEXT NOT NULL,
             title TEXT NOT NULL,
-            created_at TEXT DEFAULT (datetime('now')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(user_id)
         )
     """)
 
-    cursor.execute("""
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             session_id TEXT NOT NULL,
             user_id TEXT NOT NULL,
             role TEXT NOT NULL,
@@ -84,7 +105,7 @@ def init_db():
         )
     """)
 
-    cursor.execute("""
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS mood_tracker (
             user_id TEXT PRIMARY KEY,
             happy INTEGER DEFAULT 0,
@@ -96,7 +117,7 @@ def init_db():
 
     conn.commit()
     conn.close()
-    print("SQLite database initialized successfully.")
+    print("PostgreSQL database initialized successfully.")
 
 # -------------------------------------------------------
 # DATABASE HELPER FUNCTIONS
@@ -104,24 +125,24 @@ def init_db():
 
 def db_get_user_by_username(username: str):
     conn = get_db()
-    user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+    user = conn.execute("SELECT * FROM users WHERE username = %s", (username,)).fetchone()
     conn.close()
     return dict(user) if user else None
 
 def db_get_user_by_id(user_id: str):
     conn = get_db()
-    user = conn.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()
+    user = conn.execute("SELECT * FROM users WHERE user_id = %s", (user_id,)).fetchone()
     conn.close()
     return dict(user) if user else None
 
 def db_create_user(user_id: str, username: str, password: str):
     conn = get_db()
     conn.execute(
-        "INSERT INTO users (user_id, username, password) VALUES (?, ?, ?)",
+        "INSERT INTO users (user_id, username, password) VALUES (%s, %s, %s)",
         (user_id, username, password)
     )
     conn.execute(
-        "INSERT INTO mood_tracker (user_id, happy, neutral, sad) VALUES (?, 0, 0, 0)",
+        "INSERT INTO mood_tracker (user_id, happy, neutral, sad) VALUES (%s, 0, 0, 0)",
         (user_id,)
     )
     conn.commit()
@@ -129,7 +150,7 @@ def db_create_user(user_id: str, username: str, password: str):
 
 def db_get_mood(user_id: str):
     conn = get_db()
-    row = conn.execute("SELECT * FROM mood_tracker WHERE user_id = ?", (user_id,)).fetchone()
+    row = conn.execute("SELECT * FROM mood_tracker WHERE user_id = %s", (user_id,)).fetchone()
     conn.close()
     if row:
         return {"Happy": row["happy"], "Neutral": row["neutral"], "Sad": row["sad"]}
@@ -138,11 +159,11 @@ def db_get_mood(user_id: str):
 def db_update_mood(user_id: str, mood_key: str):
     conn = get_db()
     conn.execute(
-        "INSERT OR IGNORE INTO mood_tracker (user_id, happy, neutral, sad) VALUES (?, 0, 0, 0)",
+        "INSERT INTO mood_tracker (user_id, happy, neutral, sad) VALUES (%s, 0, 0, 0) ON CONFLICT (user_id) DO NOTHING",
         (user_id,)
     )
     conn.execute(
-        f"UPDATE mood_tracker SET {mood_key} = {mood_key} + 1 WHERE user_id = ?",
+        f"UPDATE mood_tracker SET {mood_key} = {mood_key} + 1 WHERE user_id = %s",
         (user_id,)
     )
     conn.commit()
@@ -151,7 +172,7 @@ def db_update_mood(user_id: str, mood_key: str):
 def db_get_session_titles(user_id: str):
     conn = get_db()
     rows = conn.execute(
-        "SELECT session_id, title FROM sessions WHERE user_id = ? ORDER BY created_at DESC",
+        "SELECT session_id, title FROM sessions WHERE user_id = %s ORDER BY created_at DESC",
         (user_id,)
     ).fetchall()
     conn.close()
@@ -160,7 +181,7 @@ def db_get_session_titles(user_id: str):
 def db_create_session(session_id: str, user_id: str, title: str):
     conn = get_db()
     conn.execute(
-        "INSERT OR IGNORE INTO sessions (session_id, user_id, title) VALUES (?, ?, ?)",
+        "INSERT INTO sessions (session_id, user_id, title) VALUES (%s, %s, %s) ON CONFLICT (session_id) DO NOTHING",
         (session_id, user_id, title)
     )
     conn.commit()
@@ -168,7 +189,7 @@ def db_create_session(session_id: str, user_id: str, title: str):
 
 def db_session_exists(session_id: str) -> bool:
     conn = get_db()
-    row = conn.execute("SELECT 1 FROM sessions WHERE session_id = ?", (session_id,)).fetchone()
+    row = conn.execute("SELECT 1 FROM sessions WHERE session_id = %s", (session_id,)).fetchone()
     conn.close()
     return row is not None
 
@@ -176,7 +197,7 @@ def db_add_message(session_id: str, user_id: str, role: str, message: str):
     conn = get_db()
     timestamp = datetime.now().isoformat()
     conn.execute(
-        "INSERT INTO messages (session_id, user_id, role, message, timestamp) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO messages (session_id, user_id, role, message, timestamp) VALUES (%s, %s, %s, %s, %s)",
         (session_id, user_id, role, message, timestamp)
     )
     conn.commit()
@@ -185,7 +206,7 @@ def db_add_message(session_id: str, user_id: str, role: str, message: str):
 def db_get_messages(session_id: str):
     conn = get_db()
     rows = conn.execute(
-        "SELECT role, message, timestamp FROM messages WHERE session_id = ? ORDER BY id ASC",
+        "SELECT role, message, timestamp FROM messages WHERE session_id = %s ORDER BY id ASC",
         (session_id,)
     ).fetchall()
     conn.close()
@@ -194,7 +215,7 @@ def db_get_messages(session_id: str):
 def db_get_all_user_sessions(user_id: str):
     conn = get_db()
     sessions = conn.execute(
-        "SELECT session_id, title FROM sessions WHERE user_id = ? ORDER BY created_at ASC",
+        "SELECT session_id, title FROM sessions WHERE user_id = %s ORDER BY created_at ASC",
         (user_id,)
     ).fetchall()
     conn.close()
@@ -362,7 +383,7 @@ async def reset_password(payload: ResetPasswordRequest):
     conn = get_db()
 
     user = conn.execute(
-        "SELECT * FROM users WHERE username = ?",
+        "SELECT * FROM users WHERE username = %s",
         (payload.username,)
     ).fetchone()
 
@@ -371,7 +392,7 @@ async def reset_password(payload: ResetPasswordRequest):
         raise HTTPException(status_code=404, detail="Username not found.")
 
     conn.execute(
-        "UPDATE users SET password = ? WHERE username = ?",
+        "UPDATE users SET password = %s WHERE username = %s",
         (payload.new_password, payload.username)
     )
 
