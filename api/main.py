@@ -312,6 +312,15 @@ async def startup_event():
 async def root():
     return {"status": "active", "service": "MindCare Core Application Layer"}
 
+@app.get("/api/admin/users")
+async def admin_get_users(secret: str = None):
+    if secret != "admin123":
+        raise HTTPException(status_code=401, detail="Unauthorized Admin Access")
+    conn = get_db()
+    users = conn.execute("SELECT user_id, username, created_at FROM users").fetchall()
+    conn.close()
+    return {"users": [dict(u) for u in users]}
+
 
 # -------------------------------------------------------
 # AUTHENTICATION
