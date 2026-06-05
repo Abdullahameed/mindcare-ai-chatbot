@@ -37,7 +37,7 @@ export default function MindCareApp() {
   // 1. Fetch Real-Time Sentiment Metric Summary
   const fetchAnalytics = async (id) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/mood-analytics/${id}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/mood-analytics/${id}`);
       const data = await res.json();
       if (data.metrics) {
         const mapped = moodTrends.map(trend => {
@@ -57,7 +57,7 @@ export default function MindCareApp() {
   // 2. Fetch Real-Time Chat History Sidebar Content
   const fetchHistory = async (id) => {
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/chat/history/${id}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/chat/history/${id}`);
       const data = await res.json();
       if (data.history) {
         setChatHistory(data.history);
@@ -132,7 +132,7 @@ export default function MindCareApp() {
     const endpoint = authMode === "signup" ? "signup" : "login";
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/auth/${endpoint}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/auth/${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: username.trim(), password: password.trim() })
@@ -169,7 +169,7 @@ export default function MindCareApp() {
     setInputMessage("");
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/chat", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -217,7 +217,7 @@ export default function MindCareApp() {
 
   const handleDownloadPDF = () => {
     if (!userSession) return;
-    window.location.href = `http://127.0.0.1:8000/api/export-report/${userSession.user_id}`;
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/export-report/${userSession.user_id}`;
   };
 
   const getMaxMetricCount = () => {
@@ -314,7 +314,7 @@ export default function MindCareApp() {
 
     if (!usernameInput || !newPassword) return;
 
-    fetch("http://127.0.0.1:8000/api/auth/reset-password", {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/auth/reset-password`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
