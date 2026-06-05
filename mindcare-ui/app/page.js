@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Send, Smile, Meh, Frown, FileText, Sparkles, PlusCircle } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 export default function MindCareApp() {
   const [view, setView] = useState("landing"); // Flow: landing -> auth -> dashboard
@@ -21,6 +22,7 @@ export default function MindCareApp() {
   const [inputMessage, setInputMessage] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
 
   // Fixed 3 Column Layout for real sentiment distribution tracking
@@ -194,11 +196,12 @@ export default function MindCareApp() {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!inputMessage.trim()) return;
+    if (!inputMessage.trim() || isLoading) return;
 
     const userText = inputMessage;
     setMessages(prev => [...prev, { text: userText, isBot: false }]);
     setInputMessage("");
+    setIsLoading(true);
 
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/chat`, {
@@ -214,6 +217,7 @@ export default function MindCareApp() {
 
       // Add bot response to chat
       setMessages(prev => [...prev, { text: data.response, isBot: true }]);
+      setIsLoading(false);
 
       // TEXT-TO-SPEECH: Read the bot response aloud automatically
       speak(data.response);
@@ -222,6 +226,7 @@ export default function MindCareApp() {
       fetchAnalytics(userSession.user_id);
       fetchHistory(userSession.user_id);
     } catch (error) {
+      setIsLoading(false);
       setMessages(prev => [...prev, { text: "Error maintaining connection pipeline with RAG instance server.", isBot: true }]);
     }
   };
@@ -258,7 +263,7 @@ export default function MindCareApp() {
   // --- VIEW 1: LANDING INTERFACE ---
   if (view === "landing") {
     return (
-      <div className="min-h-screen bg-[#EBF5FB] flex flex-col items-center p-8 justify-between text-slate-700">
+      <div className="min-h-screen bg-gradient-to-br from-[#EBF5FB] via-[#D5E6F7] to-[#BACDDF] flex flex-col items-center p-8 justify-between text-slate-700">
         <div className="w-full max-w-6xl flex justify-between items-center">
           <div className="flex items-center gap-2 text-sky-600 font-medium">
             <Sparkles className="w-5 h-5 text-sky-400" />
@@ -311,9 +316,9 @@ export default function MindCareApp() {
   // --- VIEW 2: AUTHENTICATION INTERFACE ---
   if (view === "auth") {
     return (
-      <div className="min-h-screen bg-[#EBF5FB] flex items-center justify-center p-6">
-        <div className="bg-[#D9E4F2] w-full max-w-md rounded-[32px] p-8 border border-white/60 shadow-lg">
-          <div className="flex bg-[#BACDDF]/60 rounded-2xl p-1.5 mb-8">
+      <div className="min-h-screen bg-gradient-to-br from-[#EBF5FB] via-[#D5E6F7] to-[#BACDDF] flex items-center justify-center p-6">
+        <div className="backdrop-blur-md bg-white/40 w-full max-w-md rounded-[32px] p-8 border border-white/60 shadow-2xl">
+          <div className="flex bg-white/40 rounded-2xl p-1.5 mb-8 shadow-inner border border-white/40">
             <button type="button" onClick={() => {setAuthMode("signup"); setAuthError("");}} className={`flex-1 text-center py-2.5 text-xs font-bold rounded-xl transition-all ${authMode === "signup" ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>Sign up</button>
             <button type="button" onClick={() => {setAuthMode("signin"); setAuthError("");}} className={`flex-1 text-center py-2.5 text-xs font-bold rounded-xl transition-all ${(authMode === "signin" || authMode === "forgot") ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>Sign In</button>
           </div>
@@ -378,11 +383,11 @@ export default function MindCareApp() {
 
   // --- VIEW 3: MAIN SYSTEM DASHBOARD PANEL ---
   return (
-    <div className="min-h-screen bg-[#EBF5FB] p-6 flex items-center justify-center text-slate-700">
+    <div className="min-h-screen bg-gradient-to-br from-[#EBF5FB] via-[#D5E6F7] to-[#BACDDF] p-6 flex items-center justify-center text-slate-700">
       <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
 
         {/* Left Control Panel */}
-        <div className="lg:col-span-3 bg-[#D5E6F7] rounded-[32px] p-6 border border-white/40 shadow-md flex flex-col justify-between">
+        <div className="lg:col-span-3 backdrop-blur-md bg-white/40 rounded-[32px] p-6 border border-white/60 shadow-xl flex flex-col justify-between hover:shadow-2xl transition-all duration-300">
           <div>
             <div className="flex items-center gap-2 text-slate-900 font-bold mb-6 text-base">
               <Sparkles className="w-5 h-5 text-sky-600" />
@@ -426,8 +431,8 @@ export default function MindCareApp() {
         </div>
 
         {/* Center Panel: Chat */}
-        <div className="lg:col-span-6 bg-white rounded-[32px] shadow-md flex flex-col border border-slate-100 overflow-hidden min-h-[500px] h-[calc(100vh-6rem)]">
-          <div className="p-4 bg-slate-50/50 border-b border-slate-100 font-bold text-slate-800 text-sm tracking-wide flex justify-between items-center">
+        <div className="lg:col-span-6 backdrop-blur-md bg-white/70 rounded-[32px] shadow-xl flex flex-col border border-white/60 overflow-hidden min-h-[500px] h-[calc(100vh-6rem)] hover:shadow-2xl transition-all duration-300">
+          <div className="p-4 bg-white/50 backdrop-blur-sm border-b border-white/60 font-bold text-slate-800 text-sm tracking-wide flex justify-between items-center shadow-sm">
             <span>Clinical Chat Interface</span>
             <div className="flex items-center gap-2">
               {/* Live speaking indicator with stop button */}
@@ -446,28 +451,51 @@ export default function MindCareApp() {
 
           <div className="flex-1 p-5 overflow-y-auto space-y-4 bg-slate-50/20">
             {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.isBot ? 'justify-start' : 'justify-end'}`}>
+              <div key={i} className={`flex ${msg.isBot ? 'justify-start' : 'justify-end'} animate-in slide-in-from-bottom-2 duration-300`}>
                 {msg.isBot && (
-                  <div className="w-7 h-7 rounded-full bg-sky-100 flex items-center justify-center text-xs mr-2 border border-sky-200 shadow-sm mt-0.5">🧠</div>
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-sky-100 to-white flex items-center justify-center text-xs mr-2 border border-sky-200 shadow-sm mt-0.5 z-10">🧠</div>
                 )}
-                <div className={`max-w-[78%] rounded-2xl px-4 py-3 text-xs leading-relaxed font-medium shadow-sm ${
+                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-[13px] leading-relaxed shadow-md backdrop-blur-sm ${
                   msg.isBot
-                    ? 'bg-[#E3F2FD] text-slate-700 rounded-tl-none border border-[#C6E2FA]'
-                    : 'bg-[#4FA3F7] text-white rounded-tr-none'
+                    ? 'bg-white/80 text-slate-700 rounded-tl-none border border-white/60 font-medium'
+                    : 'bg-gradient-to-r from-[#4FA3F7] to-sky-500 text-white rounded-tr-none border border-sky-400 font-medium'
                 }`}>
-                  {msg.text}
+                  {msg.isBot ? (
+                    <ReactMarkdown
+                      components={{
+                        strong: ({node, ...props}) => <strong className="font-extrabold text-slate-900" {...props} />,
+                        p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                        ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
+                        li: ({node, ...props}) => <li className="" {...props} />
+                      }}
+                    >
+                      {msg.text}
+                    </ReactMarkdown>
+                  ) : (
+                    msg.text
+                  )}
                   {/* Re-read aloud button on every bot message */}
                   {msg.isBot && (
                     <button
                       onClick={() => speak(msg.text)}
-                      className="block mt-1.5 text-[9px] text-sky-400 hover:text-sky-600 font-bold uppercase tracking-wider transition-colors"
+                      className="block mt-2 text-[10px] text-sky-500 hover:text-sky-700 font-bold uppercase tracking-wider transition-colors flex items-center gap-1 opacity-80 hover:opacity-100"
                     >
-                      🔊 Read aloud
+                      <span>🔊</span> Read aloud
                     </button>
                   )}
                 </div>
               </div>
             ))}
+            {isLoading && (
+              <div className="flex justify-start animate-in fade-in duration-300">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-sky-100 to-white flex items-center justify-center text-xs mr-2 border border-sky-200 shadow-sm mt-0.5 z-10">🧠</div>
+                <div className="bg-white/80 rounded-2xl rounded-tl-none px-4 py-3 shadow-md border border-white/60 flex items-center gap-1.5 h-[42px] backdrop-blur-sm">
+                  <div className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                  <div className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                  <div className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-bounce"></div>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
@@ -495,12 +523,12 @@ export default function MindCareApp() {
         </div>
 
         {/* Right Panel: Sentiment */}
-        <div className="lg:col-span-3 bg-white rounded-[32px] p-6 shadow-md border border-slate-100 flex flex-col justify-between min-h-[500px] h-[calc(100vh-6rem)]">
+        <div className="lg:col-span-3 backdrop-blur-md bg-white/40 rounded-[32px] p-6 shadow-xl border border-white/60 flex flex-col justify-between min-h-[500px] h-[calc(100vh-6rem)] hover:shadow-2xl transition-all duration-300">
           <div>
-            <h3 className="font-extrabold text-slate-950 text-base tracking-wide mb-0.5">Sentiment Profile</h3>
-            <span className="text-[10px] text-slate-400 block mb-6 font-bold uppercase tracking-wider">Real-time analysis counts</span>
+            <h3 className="font-extrabold text-slate-950 text-base tracking-wide mb-0.5 flex items-center gap-2"><Sparkles className="w-4 h-4 text-sky-500" /> Sentiment Profile</h3>
+            <span className="text-[10px] text-slate-500 block mb-6 font-bold uppercase tracking-wider">Real-time analysis counts</span>
 
-            <div className="h-44 flex items-end justify-between gap-4 border-b border-slate-100 pb-3 mb-5 px-2 bg-slate-50/40 p-3 rounded-2xl shadow-inner">
+            <div className="h-44 flex items-end justify-between gap-4 border-b border-white/40 pb-3 mb-5 px-2 bg-white/40 backdrop-blur-sm p-3 rounded-2xl shadow-inner">
               {moodTrends.map((bar, idx) => {
                 const percentageHeight = Math.max(8, (bar.count / getMaxMetricCount()) * 100);
                 return (
